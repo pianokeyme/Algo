@@ -105,8 +105,11 @@ class InteractivePlot:
 if __name__ == "__main__":
     sr, signall = path_to_numpy("test c4c5.wav") #sr= 48k
     print(sr)
-    test = InteractivePlot(signall, sr, 50, 50)
+    test = InteractivePlot(signall, sr, 150, 50)
     test.plot()
     test.exec_graph()
 
 
+# register at certain threshold A
+# save it to a list if its still present and above threshold B then regiter
+# when below threshold B remove it if break

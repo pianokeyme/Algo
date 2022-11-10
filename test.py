@@ -16,7 +16,7 @@ note_string = ['C', 'C#/Db', 'D', 'D#/Eb', 'E', 'F', 'F#/Gb', 'G', 'G#/Ab', 'A',
 
 def path_to_numpy(file_path):
     wav_file_path = pjoin(os.getcwd(), file_path)
-    sampling_rate, audio_signal = wavfile.read(wapv_file_path)
+    sampling_rate, audio_signal = wavfile.read(wav_file_path)
     return sampling_rate, audio_signal
 
 
