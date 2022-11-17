@@ -39,7 +39,15 @@ def generate_freq_spectrum(x, sf):
     x = fft.fft(x) / n  # fft computing and normalization
     x = x[range(n // 2)]
 
+    # temp = signal.fftconvolve(x, x, mode='full')
+    # ac = temp[temp.size//2:]
+
     return frqarr, abs(x)
+
+def autocorr(amp):
+    result = signal.fftconvolve(amp, amp, mode='full') # np.correlate
+    ac = result[result.size//2:] # len(result)/2 or result.size//2
+    return ac
 
 
 def bandpass_filter(raw_signal, fs):

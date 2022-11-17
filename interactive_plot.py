@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import diff
 import math
 from matplotlib.widgets import Slider
-from test import bandpass_filter, generate_freq_spectrum, frequency_to_note, path_to_numpy
+from test import bandpass_filter, generate_freq_spectrum, frequency_to_note, path_to_numpy, autocorr
 import time
 
 
@@ -20,11 +21,11 @@ class InteractivePlot:
         self.sample_per_section = int((self.frame_size / 1000) * self.sampling_rate)
         #function check and replot
 
-        self.fig, (self.ax1, self.ax2) = plt.subplots(2, figsize = (5,8))
+        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, figsize = (5,8))
         self.font = {'family': 'serif',
                      'color': 'darkred',
                      'weight': 'normal',
-                     'size': 5,
+                     'size': 8,
                      }
         axfreq = self.fig.add_axes([0.25, 0.1, 0.65, 0.03])
         self.fig.subplots_adjust(left=0.25, bottom=0.25)
@@ -53,6 +54,10 @@ class InteractivePlot:
             section = self.audio_signal_array[section_num * self.sample_per_section: min((section_num + 1) * self.sample_per_section,
                                                                          self.signal_length)]  # chop into section
             frequency, signal_amplitude = generate_freq_spectrum(section, self.sampling_rate)  # fft
+
+            ### New Code
+            autocorr_amplitude = autocorr(signal_amplitude)
+
             peak_frequency_index = np.argmax(
                 signal_amplitude)  # get peak freq, return the index of the highest value
             if signal_amplitude[peak_frequency_index] > self.threshold:
@@ -89,6 +94,23 @@ class InteractivePlot:
         #add try catch for shape mismatch
         print(str(len(section)) + "update section len")
         frequency, signal_amplitude = generate_freq_spectrum(section, self.sampling_rate)  # fft
+
+        ### New Code
+        autocorr_amplitude = autocorr(section) # Replace signal_amplitude with section for time domain
+        d = diff(autocorr_amplitude)
+        # start = np.nonzero(np.ravel(d > 0))[0]
+        # peak = np.argmax(autocorr_amplitude[start:]) + start
+        # px, py = self.parabolic(autocorr_amplitude, peak)
+        # print("Testing Freq: "+self.sampling_rate/px)
+        # print("Testing Note: "+frequency_to_note(self.sampling_rate/px))
+        first_min_index = np.argmin(autocorr_amplitude)
+        second_max_index = np.argmax(autocorr_amplitude[first_min_index:])
+        ac_freq = 1000/second_max_index
+        self.ax3.clear()
+        self.ax3.plot(autocorr_amplitude)
+        print("Testing Freq: "+str(ac_freq))
+        print("Testing Note: "+frequency_to_note(ac_freq))
+
         print(str(len(signal_amplitude)) + "amp len update")
         self.ax1.lines.remove(self.start_indicator)
         self.ax1.lines.remove(self.end_indicator)
@@ -98,9 +120,13 @@ class InteractivePlot:
         self.end_indicator = self.ax1.axvline(
             x=min((self.frame_slider.val + 1) * self.sample_per_section, self.signal_length), color='b', linewidth=0.5,
             linestyle="-", zorder=11)
-        self.freq_line.set_ydata(signal_amplitude)
+        self.freq_line.set_ydata(signal_amplitude) # Replace signal_amplitude with autocorr_amplitude for autocorrelation plot
         self.fig.canvas.draw_idle()
 
+    def parabolic(self, f, x):
+        xv = 1/2 * (f[x-1] - f[x+1]) / (f[x-1] - 2 * f[x] + f[x+1]) + x
+        yv = f[x] - 1/4 * (f[x-1] - f[x+1]) * (xv - x)
+        return (xv, yv)
 
 if __name__ == "__main__":
     sr, signall = path_to_numpy("test c4c5.wav") #sr= 48k
