@@ -72,8 +72,8 @@ class InteractivePlot:
                         linestyle="-", zorder=11)
 
         #plot freq domain
-        b1 = 0
-        b2 = self.sample_per_section* self.frame_slider.val
+        b1 = 0 # this the starting point of the frame
+        b2 = self.sample_per_section* self.frame_slider.val # end point
         filtered_signal = bandpass_filter(self.audio_signal_array, self.sampling_rate)
         freq, magnitude = generate_freq_spectrum(filtered_signal[b1:b2], self.sampling_rate)
         self.freq_line, = self.ax2.plot(freq, magnitude) #add in peak points and text  #change to bar graph
