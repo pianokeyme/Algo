@@ -1,27 +1,25 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy import diff
 import math
+from scipy.signal import find_peaks
 from matplotlib.widgets import Slider
-from test import bandpass_filter, generate_freq_spectrum, frequency_to_note, path_to_numpy, autocorr
-import time
-
+from test import bandpass_filter, generate_freq_spectrum, frequency_to_note, path_to_numpy, autocorr, autocorr_freq
 
 note_string = ['C', 'C#/Db', 'D', 'D#/Eb', 'E', 'F', 'F#/Gb', 'G', 'G#/Ab', 'A', 'A#/Bb', 'B']
 
 
 class InteractivePlot:
 
-    def __init__(self, audio_signal_array, sampling_rate, frame_size, threshold ):
-        self.audio_signal_array = audio_signal_array
+    def __init__(self, audio_signal_array, sampling_rate, frame_size, threshold):
         self.sampling_rate = sampling_rate
-        self.frame_size = frame_size #in ms
+        # self.audio_signal_array_filtered = bandpass_filter(audio_signal_array, self.sampling_rate)
+        self.audio_signal_array = audio_signal_array
+        self.frame_size = frame_size  # in ms
         self.threshold = threshold
         self.signal_length = len(self.audio_signal_array)
         self.sample_per_section = int((self.frame_size / 1000) * self.sampling_rate)
-        #function check and replot
-
-        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, figsize = (5,8))
+        # function check and replot
+        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, figsize=(5, 8))
         self.font = {'family': 'serif',
                      'color': 'darkred',
                      'weight': 'normal',
@@ -30,8 +28,8 @@ class InteractivePlot:
         axfreq = self.fig.add_axes([0.25, 0.1, 0.65, 0.03])
         self.fig.subplots_adjust(left=0.25, bottom=0.25)
         total_duration = self.signal_length / self.sampling_rate
-        n_section= math.ceil(total_duration / (self.frame_size / 1000))
-        self.frame_slider = Slider(    ######can only increment by 2 for some reason. even when step is step at 1
+        n_section = math.ceil(total_duration / (self.frame_size / 1000))
+        self.frame_slider = Slider(
             ax=axfreq,
             label='Frame number ',
             valmin=1,
@@ -44,98 +42,95 @@ class InteractivePlot:
         self.ax1.set_ylabel('Magnitude')
         self.ax2.set_xlabel('Freq (Hz)')
         self.ax2.set_ylabel('Magnitude')
-        self.ax2.set_ylim([0,2000])
+        self.ax2.set_yscale('log')
+        self.ax3.set_xlabel('shift')
+        self.ax3.set_ylabel('Magnitude')
+        self.ax2.set_ylim([1, 10000])
+        self.ax2.set_xlim([0, 5000])
 
     def plot(self):
         total_duration = self.signal_length / self.sampling_rate
-        n_section= math.ceil(total_duration / (self.frame_size / 1000))
+        n_section = math.ceil(total_duration / (self.frame_size / 1000))
         max_y = np.max(self.audio_signal_array)
         for section_num in range(0, n_section):
-            section = self.audio_signal_array[section_num * self.sample_per_section: min((section_num + 1) * self.sample_per_section,
-                                                                         self.signal_length)]  # chop into section
-            frequency, signal_amplitude = generate_freq_spectrum(section, self.sampling_rate)  # fft
+            section = self.audio_signal_array[
+                      section_num * self.sample_per_section: min((section_num + 1) * self.sample_per_section,
+                                                                 self.signal_length)]  # chop into section
+            frequency = autocorr_freq(section, self.sampling_rate)  # autocorr
 
-            ### New Code
-            autocorr_amplitude = autocorr(signal_amplitude)
-
-            peak_frequency_index = np.argmax(
-                signal_amplitude)  # get peak freq, return the index of the highest value
-            if signal_amplitude[peak_frequency_index] > self.threshold:
-                self.ax1.text(section_num * self.sample_per_section, 0, frequency_to_note(frequency[peak_frequency_index]),
-                         fontdict=self.font)  # plot note name
-                self.ax1.text(section_num * self.sample_per_section, 0.25 * max_y, frequency[peak_frequency_index],
-                         fontdict=self.font)  # freq
-            self.ax1.axvline(x=min((section_num + 1) * self.sample_per_section, self.signal_length), color='r', linewidth=0.5,
-                        linestyle="-", zorder=10)  # lines for separating segments
-            self.ax1.text(section_num * self.sample_per_section, 0.5 * max_y, round(signal_amplitude[peak_frequency_index]),
-                     fontdict=self.font)  # plot the freq magnitude
+            if frequency > 0:
+                self.ax1.text(section_num * self.sample_per_section, 0,
+                              frequency_to_note(frequency),
+                              fontdict=self.font)  # plot note name
+                self.ax1.text(section_num * self.sample_per_section, 0.25 * max_y, int(frequency),
+                              fontdict=self.font)  # freq
+            self.ax1.axvline(x=min((section_num + 1) * self.sample_per_section, self.signal_length), color='r',
+                             linewidth=0.5,
+                             linestyle="-", zorder=10)  # lines for separating segments
         self.ax1.plot(self.audio_signal_array, zorder=0)
 
-        self.start_indicator = self.ax1.axvline(x=min(self.frame_slider.val * self.sample_per_section, self.signal_length), color='b', linewidth=0.5,
-                        linestyle="-", zorder=11)
-        self.end_indicator = self.ax1.axvline(x=min((self.frame_slider.val + 1) * self.sample_per_section, self.signal_length), color='b', linewidth=0.5,
-                        linestyle="-", zorder=11)
+        self.start_indicator = self.ax1.axvline(
+            x=min(self.frame_slider.val * self.sample_per_section, self.signal_length), color='b', linewidth=0.5,
+            linestyle="-", zorder=11)
+        self.end_indicator = self.ax1.axvline(
+            x=min((self.frame_slider.val + 1) * self.sample_per_section, self.signal_length), color='b', linewidth=0.5,
+            linestyle="-", zorder=11)
 
-        #plot freq domain
+        # plot freq domain
         b1 = 0
-        b2 = self.sample_per_section* self.frame_slider.val
-        filtered_signal = bandpass_filter(self.audio_signal_array, self.sampling_rate)
-        freq, magnitude = generate_freq_spectrum(filtered_signal[b1:b2], self.sampling_rate)
-        self.freq_line, = self.ax2.plot(freq, magnitude) #add in peak points and text  #change to bar graph
-        print(str(len(magnitude))+ " initial")
+        b2 = self.sample_per_section * self.frame_slider.val
+        freq, magnitude = generate_freq_spectrum(self.audio_signal_array[b1:b2], self.sampling_rate)
+        self.freq_line, = self.ax2.plot(freq, magnitude)  # add in peak points and text  #change to bar graph
 
     def exec_graph(self):
         self.frame_slider.on_changed(self.update)
         plt.show()
 
     def update(self, val):
-        section = self.audio_signal_array[self.frame_slider.val * self.sample_per_section: min((self.frame_slider.val + 1) * self.sample_per_section,
-                                                                        self.signal_length)]  # chop into section
-        #add try catch for shape mismatch
-        print(str(len(section)) + "update section len")
+        section = self.audio_signal_array[self.frame_slider.val * self.sample_per_section: min(
+            (self.frame_slider.val + 1) * self.sample_per_section,
+            self.signal_length)]  # chop into section
+        # add try catch for shape mismatch
         frequency, signal_amplitude = generate_freq_spectrum(section, self.sampling_rate)  # fft
 
-        ### New Code
-        autocorr_amplitude = autocorr(section) # Replace signal_amplitude with section for time domain
-        d = diff(autocorr_amplitude)
-        # start = np.nonzero(np.ravel(d > 0))[0]
-        # peak = np.argmax(autocorr_amplitude[start:]) + start
-        # px, py = self.parabolic(autocorr_amplitude, peak)
-        # print("Testing Freq: "+self.sampling_rate/px)
-        # print("Testing Note: "+frequency_to_note(self.sampling_rate/px))
-        first_min_index = np.argmin(autocorr_amplitude)
-        second_max_index = np.argmax(autocorr_amplitude[first_min_index:])
-        ac_freq = 1000/second_max_index
+        autocorr_value = autocorr(section, self.sampling_rate)  # Replace signal_amplitude with section for time domain
+        phase_zero_height = np.max(autocorr_value)
+        peaks = find_peaks(autocorr_value, height=phase_zero_height / 2, distance=11)[
+            0]  # find peaks return a tuple. but second item is empty
+        dict = {}  # key is index
+        for i in range(len(peaks)):
+            peak_index = peaks[i]
+            dict[autocorr_value[peak_index]] = peak_index
+        sorted_value = sorted(dict.keys(), reverse=True)
+        freq_from_corr = self.sampling_rate / abs(dict[sorted_value[0]] - dict[sorted_value[1]])
         self.ax3.clear()
-        self.ax3.plot(autocorr_amplitude)
-        print("Testing Freq: "+str(ac_freq))
-        print("Testing Note: "+frequency_to_note(ac_freq))
+        self.ax3.plot(autocorr_value)
+        if phase_zero_height > 10000000:  # 10M
+            self.ax3.text(0, 0, int(freq_from_corr),
+                          fontdict=self.font)  # freq
+            self.ax3.plot(peaks, autocorr_value[peaks], "x")
 
-        print(str(len(signal_amplitude)) + "amp len update")
         self.ax1.lines.remove(self.start_indicator)
         self.ax1.lines.remove(self.end_indicator)
-        self.start_indicator = self.ax1.axvline(x=min(self.frame_slider.val * self.sample_per_section, self.signal_length),
-                                                color='b', linewidth=0.5,
-                                                linestyle="-", zorder=11)
+        self.start_indicator = self.ax1.axvline(
+            x=min(self.frame_slider.val * self.sample_per_section, self.signal_length),
+            color='b', linewidth=0.5,
+            linestyle="-", zorder=11)
         self.end_indicator = self.ax1.axvline(
             x=min((self.frame_slider.val + 1) * self.sample_per_section, self.signal_length), color='b', linewidth=0.5,
             linestyle="-", zorder=11)
-        self.freq_line.set_ydata(signal_amplitude) # Replace signal_amplitude with autocorr_amplitude for autocorrelation plot
+        self.freq_line.set_ydata(
+            signal_amplitude)  # Replace signal_amplitude with autocorr_amplitude for autocorrelation plot
         self.fig.canvas.draw_idle()
 
-    def parabolic(self, f, x):
-        xv = 1/2 * (f[x-1] - f[x+1]) / (f[x-1] - 2 * f[x] + f[x+1]) + x
-        yv = f[x] - 1/4 * (f[x-1] - f[x+1]) * (xv - x)
-        return (xv, yv)
+    def to_do(self):
+        # clean up and push
+        # check why autocorrelate doesnt work with filtered signal
+        pass
+
 
 if __name__ == "__main__":
-    sr, signall = path_to_numpy("test c4c5.wav") #sr= 48k
-    print(sr)
-    test = InteractivePlot(signall, sr, 150, 50)
+    sr, signall = path_to_numpy("test c4c5.wav")  # sr= 48k
+    test = InteractivePlot(signall, sr, 200, 50)  # frame size in ms
     test.plot()
     test.exec_graph()
-
-
-# register at certain threshold A
-# save it to a list if its still present and above threshold B then regiter
-# when below threshold B remove it if break
