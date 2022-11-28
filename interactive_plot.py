@@ -3,7 +3,7 @@ import numpy as np
 import math
 from scipy.signal import find_peaks
 from matplotlib.widgets import Slider
-from test import bandpass_filter, generate_freq_spectrum, frequency_to_note, path_to_numpy, autocorr, autocorr_freq
+from test import generate_freq_spectrum, frequency_to_note, path_to_numpy, autocorr, autocorr_freq
 
 note_string = ['C', 'C#/Db', 'D', 'D#/Eb', 'E', 'F', 'F#/Gb', 'G', 'G#/Ab', 'A', 'A#/Bb', 'B']
 
@@ -62,13 +62,12 @@ class InteractivePlot:
         total_duration = self.signal_length / self.sampling_rate
         n_section = math.ceil(total_duration / (self.frame_size / 1000))
         max_y = np.max(self.audio_signal_array)
+        print(n_section)
         for section_num in range(0, n_section):
             section = self.audio_signal_array[section_num * self.sample_per_section: min((section_num + 1) * self.sample_per_section, self.signal_length)]  # chop into section
             frequency_autocorr = autocorr_freq(section, self.sampling_rate)  # autocorr
             frequency_fft, signal_amplitude = generate_freq_spectrum(section, self.sampling_rate)  # fft
             peak_frequency_index_fft = np.argmax(signal_amplitude)  # get peak freq, return the index of the highest value
-
-            noteDetected = False
             self.prev_autocorr_note = self.curr_autocorr_note
             self.prev_fft_note = self.curr_fft_note
 
@@ -95,7 +94,9 @@ class InteractivePlot:
                               fontdict=self.font)  # plot note name
                 self.ax1.text(section_num * self.sample_per_section, 0.25 * max_y, int(frequency_taken),
                               fontdict=self.font)  # freq
-
+                o_octave = ''.join([i for i in note_taken if i.isdigit()])
+                o_note = ''.join([i for i in note_taken if not i.isdigit()])
+                print((o_octave ,o_note))
             self.ax1.axvline(x=min((section_num + 1) * self.sample_per_section, self.signal_length), color='r',
                              linewidth=0.5,
                              linestyle="-", zorder=10)  # lines for separating segments
