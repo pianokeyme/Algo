@@ -69,25 +69,25 @@ class InteractivePlot:
                               #frequency_to_note(frequency_fft[peak_frequency_index_fft]), fontdict = self.font)
                 # self.ax1.text(section_num * self.sample_per_section, 0.25 * max_y, int(frequency_autocorr),
                 # fontdict = self.font)  # freq
-                self.ax1.axvline(x=min((section_num + 1) * self.sample_per_section, self.signal_length), color='r',
-                                 linewidth=0.5,
-                                 linestyle="-", zorder=10)  # lines for separating segments
-                self.ax1.plot(self.audio_signal_array, zorder=0)
+            self.ax1.axvline(x=min((section_num + 1) * self.sample_per_section, self.signal_length), color='r',
+                             linewidth=0.5,
+                             linestyle="-", zorder=10)  # lines for separating segments
+        self.ax1.plot(self.audio_signal_array, zorder=0)
 
-                self.start_indicator = self.ax1.axvline(
-                    x=min(self.frame_slider.val * self.sample_per_section, self.signal_length), color='b',
-                    linewidth=0.5,
-                    linestyle="-", zorder=11)
-                self.end_indicator = self.ax1.axvline(
-                    x=min((self.frame_slider.val + 1) * self.sample_per_section, self.signal_length), color='b',
-                    linewidth=0.5,
-                    linestyle="-", zorder=11)
+        self.start_indicator = self.ax1.axvline(
+            x=min(self.frame_slider.val * self.sample_per_section, self.signal_length), color='b',
+            linewidth=0.5,
+            linestyle="-", zorder=11)
+        self.end_indicator = self.ax1.axvline(
+            x=min((self.frame_slider.val + 1) * self.sample_per_section, self.signal_length), color='b',
+            linewidth=0.5,
+            linestyle="-", zorder=11)
 
-                # plot freq domain
-                b1 = 0
-                b2 = self.sample_per_section * self.frame_slider.val
-                freq, magnitude = generate_freq_spectrum(self.audio_signal_array[b1:b2], self.sampling_rate)
-                self.freq_line, = self.ax2.plot(freq, magnitude)  # add in peak points and text  #change to bar graph
+        # plot freq domain
+        b1 = 0
+        b2 = self.sample_per_section * self.frame_slider.val
+        freq, magnitude = generate_freq_spectrum(self.audio_signal_array[b1:b2], self.sampling_rate)
+        self.freq_line, = self.ax2.plot(freq, magnitude)  # add in peak points and text  #change to bar graph
 
     def exec_graph(self):
         self.frame_slider.on_changed(self.update)
@@ -100,10 +100,9 @@ class InteractivePlot:
         # add try catch for shape mismatch
         frequency, signal_amplitude = generate_freq_spectrum(section, self.sampling_rate)  # fft
 
-        autocorr_value = autocorr_freq(section)  # Replace signal_amplitude with section for time domain
+        autocorr_value = autocorr(section)  # Replace signal_amplitude with section for time domain
         phase_zero_height = np.max(autocorr_value)
-        peaks = find_peaks(autocorr_value, height=phase_zero_height / 2, distance=11)[
-            0]  # find peaks return a tuple. but second item is empty
+        peaks = find_peaks(autocorr_value, height=phase_zero_height / 2, distance=11)[0]  # find peaks return a tuple. but second item is empty
         dict = {}  # key is index
         for i in range(len(peaks)):
             peak_index = peaks[i]
@@ -112,6 +111,7 @@ class InteractivePlot:
         freq_from_corr = self.sampling_rate / abs(dict[sorted_value[0]] - dict[sorted_value[1]])
         self.ax3.clear()
         self.ax3.plot(autocorr_value)
+
         if phase_zero_height > 10000000:  # 10M
             self.ax3.text(0, 0, int(freq_from_corr),
                           fontdict=self.font)  # freq
