@@ -127,7 +127,7 @@ def slice_and_find_note_autocorr(audio_signal, f_rate, section_length):  # now u
             'weight': 'normal',
             'size': 5,
             }
-    fig, (ax1, ax2) = plt.subplots(2)
+    fig, ax = plt.subplots(1)
     total_duration = len(audio_signal) / f_rate
     n_section, sample_per_section = math.ceil(total_duration / (section_length / 1000)), int(
         (section_length / 1000) * f_rate)
@@ -137,22 +137,64 @@ def slice_and_find_note_autocorr(audio_signal, f_rate, section_length):  # now u
                                                                      len(audio_signal))]  # chop into section
         frequency = autocorr_freq(section, f_rate)
         if frequency > 0:
-            ax1.text(section_num * sample_per_section, 0, frequency_to_note(frequency), fontdict=font)  # plot note name
-            ax1.text(section_num * sample_per_section, 0.25 * max_y, frequency, fontdict=font)  # freq
-        ax1.axvline(x=min((section_num + 1) * sample_per_section, len(audio_signal)), color='r', linewidth=0.5,
-                    linestyle="-", zorder=10)  # lines for separating segments
-    ax1.plot(audio_signal, zorder=0)
-    ax1.set_xlabel('Sample number')
-    ax1.set_ylabel('Magnitude')
-    ax2.set_xlabel('Freq (Hz)')
-    ax2.set_ylabel('Magnitude')
+            ax.text(section_num * sample_per_section, 0, frequency_to_note(frequency), fontdict=font)  # plot note name
+            ax.text(section_num * sample_per_section, 0.25 * max_y, frequency, fontdict=font)  # freq
+        ax.axvline(x=min((section_num + 1) * sample_per_section, len(audio_signal)), color='r', linewidth=0.5,
+                   linestyle="-", zorder=10)  # lines for separating segments
+    ax.plot(audio_signal, zorder=0)
+    ax.set_xlabel('Sample number')
+    ax.set_ylabel('Magnitude')
     plt.show()
 
 
-# register the update function with each slider
+def note_recognition_time(audio_signal, f_rate, section_length):
+    font = {'family': 'serif',
+            'color': 'darkred',
+            'weight': 'normal',
+            'size': 5,
+            }
+    previous_fft, previous_corr = 0, 0
+    fig, ax = plt.subplots(1)
+    total_duration = len(audio_signal) / f_rate
+    n_section, sample_per_section = math.ceil(total_duration / (section_length / 1000)), int(
+        (section_length / 1000) * f_rate)
+    max_y = numpy.max(audio_signal)
+    for section_num in range(0, n_section):
+        section = audio_signal[section_num * sample_per_section: min((section_num + 1) * sample_per_section,
+                                                                     len(audio_signal))]  # chop into section
+        frequency_corr = autocorr_freq(section, f_rate)
+        frequency_fft, signal_amplitude = generate_freq_spectrum(section, f_rate)  # fft
+        peak_frequency_index_fft = np.argmax(
+            signal_amplitude)  # get peak freq, return the index of the highest value
+        if frequency_corr > 0:
+            note_fft = frequency_to_note(frequency_fft[peak_frequency_index_fft])
+            note_corr = frequency_to_note(frequency_corr)
+            if section_num == 0:
+                previous_fft = note_fft
+                previous_corr = note_corr
+                recognition = note_corr
+
+            else:
+                list_of_results = [previous_fft, previous_corr, note_corr, note_fft]
+                recognition = max(set(list_of_results), key=list_of_results.count)
+                if list_of_results.count(recognition) < 2:
+                    recognition = previous_corr
+                    print(list_of_results)
+                    print(section_num)
+            ax.text(section_num * sample_per_section, 0, recognition, fontdict=font)  # freq
+            ax.axvline(x=min((section_num + 1) * sample_per_section, len(audio_signal)), color='r', linewidth=0.5,
+                       linestyle="-", zorder=10)  # lines for separating segments
+            previous_fft = note_fft
+            previous_corr = note_corr
+
+    ax.plot(audio_signal, zorder=0)
+    ax.set_xlabel('Sample number')
+    ax.set_ylabel('Magnitude')
+    plt.show()
+
 
 if __name__ == "__main__":
-    print("enter mode number: 1 for real, 3 for file")
+    print("enter mode number: 1 for real, 2 for file")
     mode = int(input())
 
     if mode == 1:  # note mapping is wrong
@@ -163,6 +205,13 @@ if __name__ == "__main__":
         plt.show()
 
     if mode == 2:
+        frame_size = 200  # length of each section in ms
+        path = "test c4c5.wav"
+        frame_rate, signal_numpy = path_to_numpy(path)  # signal_numpy shape (n,)
+        filtered_signal = bandpass_filter(signal_numpy, frame_rate)
+        note_recognition_time(signal_numpy, frame_rate, frame_size)
+
+    if mode == 3:
         frame_size = 200  # length of each section in ms
         path = "test c4c5.wav"
         frame_rate, signal_numpy = path_to_numpy(path)  # signal_numpy shape (n,)

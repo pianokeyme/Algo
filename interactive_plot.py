@@ -56,13 +56,16 @@ class InteractivePlot:
             section = self.audio_signal_array[
                       section_num * self.sample_per_section: min((section_num + 1) * self.sample_per_section,
                                                                  self.signal_length)]  # chop into section
-            frequency = autocorr_freq(section, self.sampling_rate)  # autocorr
+            frequency_autocorr = autocorr_freq(section, self.sampling_rate)  # autocorr
+            frequency_fft, signal_amplitude = generate_freq_spectrum(section, self.sampling_rate)  # fft
+            peak_frequency_index_fft = np.argmax(
+                signal_amplitude)  # get peak freq, return the index of the highest value
 
-            if frequency > 0:
+            if frequency_autocorr > 0 and signal_amplitude[peak_frequency_index_fft] > self.threshold:
                 self.ax1.text(section_num * self.sample_per_section, 0,
-                              frequency_to_note(frequency),
+                              frequency_to_note(frequency_autocorr),
                               fontdict=self.font)  # plot note name
-                self.ax1.text(section_num * self.sample_per_section, 0.25 * max_y, int(frequency),
+                self.ax1.text(section_num * self.sample_per_section, 0.25 * max_y, int(frequency_autocorr),
                               fontdict=self.font)  # freq
             self.ax1.axvline(x=min((section_num + 1) * self.sample_per_section, self.signal_length), color='r',
                              linewidth=0.5,
@@ -93,7 +96,7 @@ class InteractivePlot:
         # add try catch for shape mismatch
         frequency, signal_amplitude = generate_freq_spectrum(section, self.sampling_rate)  # fft
 
-        autocorr_value = autocorr(section, self.sampling_rate)  # Replace signal_amplitude with section for time domain
+        autocorr_value = autocorr(section)  # Replace signal_amplitude with section for time domain
         phase_zero_height = np.max(autocorr_value)
         peaks = find_peaks(autocorr_value, height=phase_zero_height / 2, distance=11)[
             0]  # find peaks return a tuple. but second item is empty
@@ -124,13 +127,12 @@ class InteractivePlot:
         self.fig.canvas.draw_idle()
 
     def to_do(self):
-        # clean up and push
         # check why autocorrelate doesnt work with filtered signal
         pass
 
 
 if __name__ == "__main__":
     sr, signall = path_to_numpy("test c4c5.wav")  # sr= 48k
-    test = InteractivePlot(signall, sr, 200, 50)  # frame size in ms
+    test = InteractivePlot(signall, sr, 200, 0)  # frame size in ms
     test.plot()
     test.exec_graph()
